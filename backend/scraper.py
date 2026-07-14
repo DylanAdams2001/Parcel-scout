@@ -14,6 +14,7 @@ structure or defenses. Keep request rates modest.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -23,6 +24,11 @@ from patchright.async_api import Error as PlaywrightError
 from patchright.async_api import async_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent / ".browser-profile"
+# launch_persistent_context can only have one Chromium process open on a
+# given profile dir at a time - a second concurrent search (e.g. two users
+# at once) would otherwise crash with "Opening in existing browser session".
+# Serializing here just queues the second search instead.
+_browser_lock = asyncio.Lock()
 
 
 def _slugify_suburb(suburb: str, state: str, postcode: str | None) -> str:
@@ -260,26 +266,27 @@ async def search_listings(
     max_pages: int = 3,
 ) -> list[dict]:
     PROFILE_DIR.mkdir(exist_ok=True)
-    async with async_playwright() as p:
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR),
-            headless=False,
-            locale="en-AU",
-            viewport={"width": 1366, "height": 900},
-        )
-        try:
-            return await _scrape_pages(
-                context,
-                lambda page_num: build_search_url(
-                    suburb, state, postcode, price_min, price_max, land_min, land_max,
-                    sale_method, page_num,
-                ),
-                "buySearch",
-                max_pages,
-                _normalise_listing,
+    async with _browser_lock:
+        async with async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=str(PROFILE_DIR),
+                headless=False,
+                locale="en-AU",
+                viewport={"width": 1366, "height": 900},
             )
-        finally:
-            await context.close()
+            try:
+                return await _scrape_pages(
+                    context,
+                    lambda page_num: build_search_url(
+                        suburb, state, postcode, price_min, price_max, land_min, land_max,
+                        sale_method, page_num,
+                    ),
+                    "buySearch",
+                    max_pages,
+                    _normalise_listing,
+                )
+            finally:
+                await context.close()
 
 
 async def search_sold_listings(
@@ -291,20 +298,21 @@ async def search_sold_listings(
     """Recently-sold comparables for the suburb, used as market-price data
     for the value-score feature (see valuescore.py)."""
     PROFILE_DIR.mkdir(exist_ok=True)
-    async with async_playwright() as p:
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR),
-            headless=False,
-            locale="en-AU",
-            viewport={"width": 1366, "height": 900},
-        )
-        try:
-            return await _scrape_pages(
-                context,
-                lambda page_num: build_sold_search_url(suburb, state, postcode, page_num),
-                "soldSearch",
-                max_pages,
-                _normalise_sold_listing,
+    async with _browser_lock:
+        async with async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=str(PROFILE_DIR),
+                headless=False,
+                locale="en-AU",
+                viewport={"width": 1366, "height": 900},
             )
-        finally:
-            await context.close()
+            try:
+                return await _scrape_pages(
+                    context,
+                    lambda page_num: build_sold_search_url(suburb, state, postcode, page_num),
+                    "soldSearch",
+                    max_pages,
+                    _normalise_sold_listing,
+                )
+            finally:
+                await context.close()
