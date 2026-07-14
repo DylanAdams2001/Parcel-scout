@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -24,6 +25,24 @@ from patchright.async_api import Error as PlaywrightError
 from patchright.async_api import async_playwright
 
 PROFILE_DIR = Path(__file__).resolve().parent.parent / ".browser-profile"
+
+
+def _proxy_config() -> dict | None:
+    """Residential proxy config from the environment, or None to launch
+    without one (the local-dev default). A datacenter IP (e.g. a cloud
+    host's own address) is a strong signal to Kasada's bot detection, on
+    top of everything the browser fingerprint itself gives away."""
+    server = os.environ.get("PROXY_SERVER")
+    if not server:
+        return None
+    config: dict = {"server": server}
+    username = os.environ.get("PROXY_USERNAME")
+    password = os.environ.get("PROXY_PASSWORD")
+    if username:
+        config["username"] = username
+    if password:
+        config["password"] = password
+    return config
 # launch_persistent_context can only have one Chromium process open on a
 # given profile dir at a time - a second concurrent search (e.g. two users
 # at once) would otherwise crash with "Opening in existing browser session".
@@ -273,6 +292,7 @@ async def search_listings(
                 headless=False,
                 locale="en-AU",
                 viewport={"width": 1366, "height": 900},
+                proxy=_proxy_config(),
             )
             try:
                 return await _scrape_pages(
@@ -305,6 +325,7 @@ async def search_sold_listings(
                 headless=False,
                 locale="en-AU",
                 viewport={"width": 1366, "height": 900},
+                proxy=_proxy_config(),
             )
             try:
                 return await _scrape_pages(

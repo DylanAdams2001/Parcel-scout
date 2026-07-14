@@ -3,5 +3,23 @@ services:
     name: parcel-scout
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
+    plan: starter
     healthCheckPath: /
+    # Free-tier services have an ephemeral filesystem, so the browser
+    # profile (cookies/session that Kasada bot-detection weighs) reset to
+    # zero trust on every restart or redeploy. This disk keeps it across
+    # both, matching how it behaves in local dev.
+    disk:
+      name: browser-profile
+      mountPath: /app/.browser-profile
+      sizeGB: 1
+    envVars:
+      # Set these in the Render dashboard, not here - a residential proxy
+      # so requests come from a real-looking home IP instead of a
+      # datacenter range. Leave unset to run without a proxy.
+      - key: PROXY_SERVER
+        sync: false
+      - key: PROXY_USERNAME
+        sync: false
+      - key: PROXY_PASSWORD
+        sync: false
