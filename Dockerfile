@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # part of evading realestate.com.au's Kasada bot detection. A headed browser
 # still needs *some* display server to render into, so Xvfb provides a
 # virtual one even though nothing is ever actually shown on screen here.
-RUN apt-get update && apt-get install -y --no-install-recommends xvfb \
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
