@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: parcel-scout
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
