@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How Parcel Scout works</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M16 6c-4.2 0-7.5 3.3-7.5 7.4 0 5.5 6.6 12 7 12.4.3.3.7.3 1 0 .4-.4 7-6.9 7-12.4C23.5 9.3 20.2 6 16 6zm0 10a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6z' fill='white'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7; --card-bg: #ffffff; --text: #1a1d23; --muted: #6b7280;
+    --border: #e2e4e9; --primary: #2563eb; --primary-hover: #1d4ed8; --primary-text: #ffffff;
+    --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.06);
+    --shadow-lg: 0 8px 24px rgba(16,24,40,0.08), 0 2px 6px rgba(16,24,40,0.06);
+    --row-hover: #f8fafc;
+    --overlay-badge: #d97706; --zone-badge: #2563eb;
+    --score-good: #16a34a; --score-mid: #d97706; --score-bad: #dc2626;
+    --step-inactive: #e2e4e9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --card-bg: #1c1f26; --text: #e8e9ec; --muted: #9aa1ae;
+      --border: #2c3038; --primary: #3b82f6; --primary-hover: #60a5fa; --primary-text: #0b1220;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+      --row-hover: #22262f;
+      --overlay-badge: #b45309; --zone-badge: #3b82f6;
+      --score-good: #22c55e; --score-mid: #eab308; --score-bad: #ef4444;
+      --step-inactive: #2c3038;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5f7; --card-bg: #ffffff; --text: #1a1d23; --muted: #6b7280;
+    --border: #e2e4e9; --primary: #2563eb; --primary-hover: #1d4ed8; --primary-text: #ffffff;
+    --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.06);
+    --shadow-lg: 0 8px 24px rgba(16,24,40,0.08), 0 2px 6px rgba(16,24,40,0.06);
+    --row-hover: #f8fafc; --overlay-badge: #d97706; --zone-badge: #2563eb;
+    --score-good: #16a34a; --score-mid: #d97706; --score-bad: #dc2626; --step-inactive: #e2e4e9;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --card-bg: #1c1f26; --text: #e8e9ec; --muted: #9aa1ae;
+    --border: #2c3038; --primary: #3b82f6; --primary-hover: #60a5fa; --primary-text: #0b1220;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+    --row-hover: #22262f; --overlay-badge: #b45309; --zone-badge: #3b82f6;
+    --score-good: #22c55e; --score-mid: #eab308; --score-bad: #ef4444; --step-inactive: #2c3038;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    margin: 0; color: var(--text); -webkit-font-smoothing: antialiased;
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.85rem 1.5rem;
+    background: color-mix(in srgb, var(--card-bg) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: inherit; }
+  .logo-mark {
+    display: inline-flex; width: 2rem; height: 2rem; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover)); flex: none;
+  }
+  .logo-mark svg { width: 100%; height: 100%; }
+  .brand-name { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; }
+  .nav-actions { display: flex; align-items: center; gap: 1.1rem; }
+  .nav-link { color: var(--muted); font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+  .nav-link:hover { color: var(--text); }
+  .theme-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.2rem; height: 2.2rem; flex: none; padding: 0;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 1.05rem; line-height: 1; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--row-hover); border-color: var(--muted); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.6rem 1.2rem; font-size: 0.88rem; font-weight: 700;
+    border-radius: 8px; text-decoration: none; cursor: pointer; border: none;
+    transition: background 0.15s, transform 0.05s, border-color 0.15s, opacity 0.15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--primary); color: var(--primary-text); }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-secondary { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--muted); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  .page { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  .page-title { text-align: center; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 0.6rem; }
+  .page-subtitle { text-align: center; color: var(--muted); margin: 0 0 2.5rem; font-size: 1rem; }
+
+  .stepper { display: flex; align-items: center; justify-content: center; margin-bottom: 2.2rem; }
+  .step-dot-wrap { display: flex; align-items: center; }
+  .step-dot {
+    width: 2.1rem; height: 2.1rem; border-radius: 999px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;
+    background: var(--step-inactive); color: var(--muted);
+    transition: background 0.2s, color 0.2s;
+    flex: none;
+  }
+  .step-dot.active { background: var(--primary); color: var(--primary-text); }
+  .step-dot.done { background: color-mix(in srgb, var(--primary) 35%, var(--step-inactive)); color: var(--primary-text); }
+  .step-line { width: 2.2rem; height: 2px; background: var(--step-inactive); }
+  .step-line.done { background: var(--primary); }
+
+  .step-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow-lg); padding: 2.2rem; min-height: 22rem;
+    display: flex; flex-direction: column;
+  }
+  .step-panel { display: none; flex: 1; flex-direction: column; }
+  .step-panel.active { display: flex; }
+  .step-kicker {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--primary); margin-bottom: 0.5rem;
+  }
+  .step-panel h2 { font-size: 1.35rem; margin: 0 0 0.7rem; }
+  .step-panel p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin: 0 0 1.3rem; max-width: 42rem; }
+  .step-visual { margin-top: auto; }
+  .step-visual img {
+    display: block; width: 100%; height: auto; border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .step-visual .shot-dark { display: none; }
+  :root[data-theme="dark"] .step-visual .shot-light { display: none; }
+  :root[data-theme="dark"] .step-visual .shot-dark { display: block; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .step-visual .shot-light { display: none; }
+    :root:not([data-theme="light"]) .step-visual .shot-dark { display: block; }
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: auto; }
+  .legend-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.6rem 0.9rem; font-size: 0.85rem;
+  }
+  .score-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white; border-radius: 6px; padding: 0.15rem 0.55rem; font-size: 0.8rem; font-weight: 700; min-width: 1.8rem;
+  }
+  .badge { display: inline-block; border-radius: 5px; padding: 0.12rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: white; }
+  .overlay-badge { background: var(--overlay-badge); }
+  .zone-badge { background: var(--zone-badge); }
+
+  .step-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 2rem; padding-top: 1.3rem; border-top: 1px solid var(--border);
+  }
+  .step-count { color: var(--muted); font-size: 0.82rem; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<nav class="topbar">
+  <a class="brand" href="/">
+    <span class="logo-mark">
+      <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 6c-4.2 0-7.5 3.3-7.5 7.4 0 5.5 6.6 12 7 12.4.3.3.7.3 1 0 .4-.4 7-6.9 7-12.4C23.5 9.3 20.2 6 16 6zm0 10a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6z" fill="white"/>
+      </svg>
+    </span>
+    <span class="brand-name">Parcel Scout</span>
+  </a>
+  <div class="nav-actions">
+    <a class="nav-link" href="/">Home</a>
+    <a class="btn btn-primary" href="/app.html">Try the live demo</a>
+    <button type="button" class="theme-toggle" id="themeToggle" title="Toggle light / dark theme" aria-label="Toggle light / dark theme"></button>
+  </div>
+</nav>
+
+<div class="page">
+  <h1 class="page-title">How Parcel Scout works</h1>
+  <p class="page-subtitle">A quick walkthrough of a search, start to finish.</p>
+
+  <div class="stepper" id="stepper"></div>
+
+  <div class="step-card">
+
+    <div class="step-panel active" data-step="0">
+      <div class="step-kicker">Step 1 of 5</div>
+      <h2>Start with a suburb</h2>
+      <p>Type a few letters and pick from the dropdown — it suggests real Victorian suburbs and their postcode as you type, so a typo like "werribe" still gets you to the right place instead of a dead-end search.</p>
+      <div class="step-visual">
+        <img class="shot-light" src="/assets/step-form-crop.png" alt="Suburb field with autocomplete dropdown showing Berwick 3806" />
+        <img class="shot-dark" src="/assets/step-form-crop-dark.png" alt="Suburb field with autocomplete dropdown showing Berwick 3806" />
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="1">
+      <div class="step-kicker">Step 2 of 5</div>
+      <h2>Narrow it down (optional)</h2>
+      <p>Add a price range, land size, or restrict to private treaty vs auction only if you want a tighter shortlist — every filter is optional, and Parcel Scout searches live listings that match.</p>
+      <div class="step-visual">
+        <img class="shot-light" src="/assets/step-form-crop.png" alt="Search filters for price, land size and sale method" />
+        <img class="shot-dark" src="/assets/step-form-crop-dark.png" alt="Search filters for price, land size and sale method" />
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="2">
+      <div class="step-kicker">Step 3 of 5</div>
+      <h2>Get a ranked, scored result list</h2>
+      <p>Every matching listing comes back with a 0-100 value score, its zoning, any planning overlays, and how far it is from the nearest train station — sorted so the best-value listings are at the top.</p>
+      <div class="step-visual">
+        <img class="shot-light" src="/assets/step-results-crop.png" alt="Results table with value scores, zoning and overlays" />
+        <img class="shot-dark" src="/assets/step-results-crop-dark.png" alt="Results table with value scores, zoning and overlays" />
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="3">
+      <div class="step-kicker">Step 4 of 5</div>
+      <h2>Read the value score</h2>
+      <p>The score blends location (established vs greenfield, distance to the nearest station) with how the price compares to recent sold comparables in that suburb. 50 means "priced right at the suburb median" — not bad, just average. A great score needs to be strong on <em>both</em> location and price, not just one.</p>
+      <div class="legend">
+        <div class="legend-item"><span class="score-badge" style="background:var(--score-good)">85</span> Strong buy — good location and price</div>
+        <div class="legend-item"><span class="score-badge" style="background:var(--score-mid)">55</span> Average — priced about right</div>
+        <div class="legend-item"><span class="score-badge" style="background:var(--score-bad)">30</span> Weak — overpriced and/or poor location</div>
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="4">
+      <div class="step-kicker">Step 5 of 5</div>
+      <h2>Check zoning &amp; overlays before you inspect</h2>
+      <p>Every result shows its base zoning and any planning overlays pulled straight from Victoria's official planning data — heritage, bushfire, flood risk and more — so you know about a real constraint before you book an inspection, not after.</p>
+      <div class="legend">
+        <div class="legend-item"><span class="badge zone-badge">GRZ1</span> General Residential Zone</div>
+        <div class="legend-item"><span class="badge overlay-badge">HO - Heritage Overlay</span> Restricts renovation/demolition</div>
+      </div>
+      <div class="step-visual" style="margin-top: 1.5rem;">
+        <a class="btn btn-primary" href="/app.html">Try it yourself →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="step-actions">
+    <button class="btn btn-secondary" id="prevBtn">← Back</button>
+    <span class="step-count" id="stepCount"></span>
+    <button class="btn btn-primary" id="nextBtn">Next →</button>
+  </div>
+
+  <footer>Parcel Scout — VIC property search, value scoring &amp; planning lookup</footer>
+</div>
+
+<script>
+const TOTAL_STEPS = 5;
+let current = 0;
+
+const stepper = document.getElementById('stepper');
+const panels = document.querySelectorAll('.step-panel');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const stepCount = document.getElementById('stepCount');
+
+for (let i = 0; i < TOTAL_STEPS; i++) {
+  const wrap = document.createElement('span');
+  wrap.className = 'step-dot-wrap';
+  const dot = document.createElement('button');
+  dot.type = 'button';
+  dot.className = 'step-dot';
+  dot.textContent = i + 1;
+  dot.addEventListener('click', () => goTo(i));
+  wrap.appendChild(dot);
+  if (i < TOTAL_STEPS - 1) {
+    const line = document.createElement('span');
+    line.className = 'step-line';
+    wrap.appendChild(line);
+  }
+  stepper.appendChild(wrap);
+}
+
+function render() {
+  panels.forEach((p) => p.classList.toggle('active', Number(p.dataset.step) === current));
+  const dots = stepper.querySelectorAll('.step-dot');
+  const lines = stepper.querySelectorAll('.step-line');
+  dots.forEach((d, i) => {
+    d.classList.toggle('active', i === current);
+    d.classList.toggle('done', i < current);
+  });
+  lines.forEach((l, i) => l.classList.toggle('done', i < current));
+  prevBtn.disabled = current === 0;
+  nextBtn.textContent = current === TOTAL_STEPS - 1 ? 'Done' : 'Next →';
+  stepCount.textContent = `${current + 1} / ${TOTAL_STEPS}`;
+}
+
+function goTo(index) {
+  current = Math.max(0, Math.min(TOTAL_STEPS - 1, index));
+  render();
+}
+
+prevBtn.addEventListener('click', () => goTo(current - 1));
+nextBtn.addEventListener('click', () => {
+  if (current === TOTAL_STEPS - 1) {
+    window.location.href = '/app.html';
+  } else {
+    goTo(current + 1);
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') goTo(current + 1);
+  if (e.key === 'ArrowLeft') goTo(current - 1);
+});
+
+render();
+
+const themeToggle = document.getElementById('themeToggle');
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+const savedTheme = localStorage.getItem('theme');
+applyTheme(savedTheme || (prefersDark.matches ? 'dark' : 'light'));
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', next);
+  applyTheme(next);
+});
+</script>
+</body>
+</html>

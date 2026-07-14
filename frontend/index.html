@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Parcel Scout</title>
+<title>Parcel Scout — find the best-value property in any suburb</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M16 6c-4.2 0-7.5 3.3-7.5 7.4 0 5.5 6.6 12 7 12.4.3.3.7.3 1 0 .4-.4 7-6.9 7-12.4C23.5 9.3 20.2 6 16 6zm0 10a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6z' fill='white'/%3E%3C/svg%3E" />
 <style>
   :root {
@@ -17,69 +17,31 @@
     --primary-hover: #1d4ed8;
     --primary-text: #ffffff;
     --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+    --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.06);
     --row-hover: #f8fafc;
-    --overlay-badge: #d97706;
-    --zone-badge: #2563eb;
-    --score-good: #16a34a;
-    --score-mid: #d97706;
-    --score-bad: #dc2626;
-    --ok-text: #16a34a;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14161a;
-      --card-bg: #1c1f26;
-      --text: #e8e9ec;
-      --muted: #9aa1ae;
-      --border: #2c3038;
-      --primary: #3b82f6;
-      --primary-hover: #60a5fa;
-      --primary-text: #0b1220;
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+      --bg: #14161a; --card-bg: #1c1f26; --text: #e8e9ec; --muted: #9aa1ae;
+      --border: #2c3038; --primary: #3b82f6; --primary-hover: #60a5fa; --primary-text: #0b1220;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
       --row-hover: #22262f;
-      --overlay-badge: #b45309;
-      --zone-badge: #3b82f6;
-      --score-good: #22c55e;
-      --score-mid: #eab308;
-      --score-bad: #ef4444;
-      --ok-text: #4ade80;
     }
   }
   :root[data-theme="light"] {
-    --bg: #f4f5f7;
-    --card-bg: #ffffff;
-    --text: #1a1d23;
-    --muted: #6b7280;
-    --border: #e2e4e9;
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-text: #ffffff;
-    --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+    --bg: #f4f5f7; --card-bg: #ffffff; --text: #1a1d23; --muted: #6b7280;
+    --border: #e2e4e9; --primary: #2563eb; --primary-hover: #1d4ed8; --primary-text: #ffffff;
+    --shadow: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.06);
+    --shadow-lg: 0 8px 24px rgba(16,24,40,0.08), 0 2px 6px rgba(16,24,40,0.06);
     --row-hover: #f8fafc;
-    --overlay-badge: #d97706;
-    --zone-badge: #2563eb;
-    --score-good: #16a34a;
-    --score-mid: #d97706;
-    --score-bad: #dc2626;
-    --ok-text: #16a34a;
   }
   :root[data-theme="dark"] {
-    --bg: #14161a;
-    --card-bg: #1c1f26;
-    --text: #e8e9ec;
-    --muted: #9aa1ae;
-    --border: #2c3038;
-    --primary: #3b82f6;
-    --primary-hover: #60a5fa;
-    --primary-text: #0b1220;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+    --bg: #14161a; --card-bg: #1c1f26; --text: #e8e9ec; --muted: #9aa1ae;
+    --border: #2c3038; --primary: #3b82f6; --primary-hover: #60a5fa; --primary-text: #0b1220;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
     --row-hover: #22262f;
-    --overlay-badge: #b45309;
-    --zone-badge: #3b82f6;
-    --score-good: #22c55e;
-    --score-mid: #eab308;
-    --score-bad: #ef4444;
-    --ok-text: #4ade80;
   }
   * { box-sizing: border-box; }
   html, body { background: var(--bg); }
@@ -91,626 +53,216 @@
   }
 
   .topbar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 0.85rem 1.5rem;
     background: color-mix(in srgb, var(--card-bg) 85%, transparent);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
   }
-  .brand { display: flex; align-items: center; gap: 0.6rem; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: inherit; }
   .logo-mark {
-    display: inline-flex;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-    flex: none;
+    display: inline-flex; width: 2rem; height: 2rem; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover)); flex: none;
   }
   .logo-mark svg { width: 100%; height: 100%; }
   .brand-name { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; }
-
-  .page { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem 4rem; }
-
-  .hero { padding: 3rem 0 2rem; text-align: center; }
-  .hero h1 {
-    font-size: 2.15rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 auto 0.75rem;
-    max-width: 40rem;
-  }
-  .hero .subtitle {
-    color: var(--muted);
-    font-size: 1.02rem;
-    margin: 0 auto 1.5rem;
-    max-width: 34rem;
-  }
-  .hero-features {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-  }
-  .hero-feature {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text);
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.4rem 0.9rem;
-  }
+  .nav-actions { display: flex; align-items: center; gap: 1.1rem; }
+  .nav-link { color: var(--muted); font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+  .nav-link:hover { color: var(--text); }
 
   .theme-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    flex: none;
-    padding: 0;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 1.05rem;
-    line-height: 1;
-    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.2rem; height: 2.2rem; flex: none; padding: 0;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 1.05rem; line-height: 1; cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
   }
   .theme-toggle:hover { background: var(--row-hover); border-color: var(--muted); }
 
-  .card {
-    background: var(--card-bg);
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.7rem 1.4rem; font-size: 0.92rem; font-weight: 700;
+    border-radius: 8px; text-decoration: none; cursor: pointer; border: none;
+    transition: background 0.15s, transform 0.05s, border-color 0.15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--primary); color: var(--primary-text); }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-secondary { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--muted); }
+  .btn-sm { padding: 0.45rem 0.5rem; font-size: 0.85rem; }
+  .nav-actions .btn { padding: 0.5rem 1rem; }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem 4rem; }
+
+  .hero { padding: 4rem 0 2.5rem; text-align: center; }
+  .hero h1 {
+    font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em;
+    margin: 0 auto 0.9rem; max-width: 42rem;
+  }
+  .hero .subtitle { color: var(--muted); font-size: 1.08rem; margin: 0 auto 2rem; max-width: 36rem; }
+  .hero-ctas { display: flex; justify-content: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .hero-note { color: var(--muted); font-size: 0.8rem; margin-top: 0.9rem; }
+
+  .showcase {
+    margin: 3rem 0;
+    border-radius: 14px;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    padding: 1.25rem 1.5rem 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-  .search-card { padding: 1.75rem 1.75rem 1.85rem; }
-
-  .field-group-label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 1.25rem 0 0.65rem;
-  }
-  .field-group-label:first-child { margin-top: 0; }
-  .field-group-label::before {
-    content: "";
-    width: 1.4rem;
-    height: 1.4rem;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-  }
-  .field-group-label.icon-location::before { background: color-mix(in srgb, var(--primary) 14%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21z'/%3E%3Ccircle cx='12' cy='9.5' r='2.3'/%3E%3C/svg%3E") center/0.9rem no-repeat; }
-  .field-group-label.icon-price::before { background: color-mix(in srgb, var(--primary) 14%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2v20M17 6.5c0-1.9-2-3-5-3s-5 1.3-5 3.2c0 4 10 2 10 6.1 0 2-2 3.2-5 3.2s-5-1.1-5-3'/%3E%3C/svg%3E") center/0.9rem no-repeat; }
-  .field-group-label.icon-options::before { background: color-mix(in srgb, var(--primary) 14%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'/%3E%3C/svg%3E") center/0.9rem no-repeat; }
-
-  form { display: flex; flex-direction: column; }
-  .field-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 0.75rem;
-  }
-
-  .field label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--muted);
-    margin-bottom: 0.3rem;
-  }
-  input, select {
-    width: 100%;
-    padding: 0.5rem 0.6rem;
-    font-size: 0.88rem;
-    border: 1px solid var(--border);
-    border-radius: 7px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
     background: var(--card-bg);
-    color: var(--text);
-    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  input::placeholder { color: var(--muted); opacity: 0.7; }
-  input:focus, select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
-  }
-
-  .suburb-field { position: relative; }
-  .suburb-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 0.3rem);
-    left: 0;
-    right: 0;
-    z-index: 20;
-    margin: 0;
-    padding: 0.3rem;
-    list-style: none;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: var(--shadow);
-    max-height: 14rem;
-    overflow-y: auto;
-  }
-  .suburb-dropdown.open { display: block; }
-  .suburb-dropdown li {
-    padding: 0.45rem 0.6rem;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  .suburb-dropdown li:hover,
-  .suburb-dropdown li.active {
-    background: var(--row-hover);
+  .showcase img { display: block; width: 100%; height: auto; }
+  .showcase .shot-dark { display: none; }
+  :root[data-theme="dark"] .showcase .shot-light { display: none; }
+  :root[data-theme="dark"] .showcase .shot-dark { display: block; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .showcase .shot-light { display: none; }
+    :root:not([data-theme="light"]) .showcase .shot-dark { display: block; }
   }
 
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    margin-top: 1.35rem;
-    padding-top: 1.1rem;
-    border-top: 1px solid var(--border);
+  .section-label {
+    text-align: center; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--primary); margin-bottom: 0.6rem;
   }
-  button {
-    padding: 0.6rem 1.4rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--primary-text);
-    background: var(--primary);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.05s;
-  }
-  button:hover { background: var(--primary-hover); }
-  button:active { transform: translateY(1px); }
-  button:disabled { opacity: 0.6; cursor: default; }
+  .section-title { text-align: center; font-size: 1.6rem; font-weight: 800; margin: 0 0 2.2rem; letter-spacing: -0.01em; }
 
-  .spinner {
-    width: 14px; height: 14px;
-    border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: none;
+  .features {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem; margin: 2rem 0 3.5rem;
   }
-  .spinner.active { display: inline-block; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .feature-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.4rem; box-shadow: var(--shadow);
+  }
+  .feature-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.6rem; height: 2.6rem; border-radius: 10px; font-size: 1.3rem;
+    background: color-mix(in srgb, var(--primary) 14%, transparent); margin-bottom: 0.9rem;
+  }
+  .feature-card h3 { font-size: 1rem; margin: 0 0 0.4rem; }
+  .feature-card p { font-size: 0.88rem; color: var(--muted); margin: 0; line-height: 1.5; }
 
-  .status { color: var(--muted); font-size: 0.88rem; }
-  .status.error { color: var(--score-bad); }
+  .steps {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem; margin: 2rem 0 3.5rem;
+  }
+  .step { text-align: center; }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.2rem; height: 2.2rem; border-radius: 999px; font-weight: 800; font-size: 0.95rem;
+    background: var(--primary); color: var(--primary-text); margin-bottom: 0.8rem;
+  }
+  .step h3 { font-size: 0.98rem; margin: 0 0 0.35rem; }
+  .step p { font-size: 0.86rem; color: var(--muted); margin: 0; line-height: 1.5; }
 
-  .results-card { padding: 0; overflow: hidden; }
-  .results-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.9rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .results-header h2 { font-size: 0.95rem; margin: 0; font-weight: 700; }
-  .results-count {
-    font-size: 0.78rem; color: var(--muted); background: var(--bg);
-    border: 1px solid var(--border); border-radius: 999px; padding: 0.15rem 0.65rem;
-  }
-
-  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-  th {
-    text-align: left;
-    padding: 0.6rem 0.9rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  td {
-    padding: 0.7rem 0.9rem;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: var(--row-hover); }
-
-  .badge {
-    display: inline-block;
-    border-radius: 5px;
-    padding: 0.12rem 0.45rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    margin: 0.1rem;
-    color: white;
-  }
-  .overlay-badge { background: var(--overlay-badge); }
-  .zone-badge { background: var(--zone-badge); }
-  .score-badge {
-    display: inline-block;
-    color: white;
-    border-radius: 6px;
-    padding: 0.2rem 0.6rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    min-width: 2rem;
+  .cta-card {
     text-align: center;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--card-bg)), var(--card-bg));
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 3rem 1.5rem; margin: 1rem 0 3rem;
   }
-  .muted-note { color: var(--ok-text); font-size: 0.82rem; }
-  .unmatched-note { color: var(--muted); font-size: 0.82rem; font-style: italic; }
-
-  .location-type { font-weight: 600; }
-  .station-note { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 0.1rem; }
-
-  a.view-link {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.82rem;
-  }
-  a.view-link:hover { text-decoration: underline; }
-
-  .empty-state {
-    padding: 3rem 1.5rem;
-    text-align: center;
-    color: var(--muted);
-  }
+  .cta-card h2 { font-size: 1.5rem; margin: 0 0 0.6rem; }
+  .cta-card p { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
 
   footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.8rem;
-    padding: 1rem 0 0;
+    text-align: center; color: var(--muted); font-size: 0.8rem; padding: 1rem 0 0;
   }
 </style>
 </head>
 <body>
 <nav class="topbar">
-  <div class="brand">
+  <a class="brand" href="/">
     <span class="logo-mark">
       <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
         <path d="M16 6c-4.2 0-7.5 3.3-7.5 7.4 0 5.5 6.6 12 7 12.4.3.3.7.3 1 0 .4-.4 7-6.9 7-12.4C23.5 9.3 20.2 6 16 6zm0 10a2.8 2.8 0 1 1 0-5.6 2.8 2.8 0 0 1 0 5.6z" fill="white"/>
       </svg>
     </span>
     <span class="brand-name">Parcel Scout</span>
+  </a>
+  <div class="nav-actions">
+    <a class="nav-link" href="/guide.html">How it works</a>
+    <a class="btn btn-primary" href="/app.html">Try the live demo</a>
+    <button type="button" class="theme-toggle" id="themeToggle" title="Toggle light / dark theme" aria-label="Toggle light / dark theme"></button>
   </div>
-  <button type="button" class="theme-toggle" id="themeToggle" title="Toggle light / dark theme" aria-label="Toggle light / dark theme"></button>
 </nav>
 
 <div class="page">
-<section class="hero">
-  <h1>Find the best-value property in any suburb</h1>
-  <p class="subtitle">Search live listings, score them against recent sold comps, and see planning overlays &amp; zoning before you spend a weekend inspecting.</p>
-  <div class="hero-features">
-    <span class="hero-feature">📊 Value scoring vs sold comps</span>
-    <span class="hero-feature">🗺️ Planning overlays &amp; zoning</span>
-    <span class="hero-feature">⚡ Live listing search</span>
+  <section class="hero">
+    <h1>Find the best-value property in any Victorian suburb</h1>
+    <p class="subtitle">Parcel Scout searches live listings, scores every one against recent sold comps, and surfaces planning overlays &amp; zoning up front — so you know what's actually a good buy before you spend a weekend inspecting.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="/app.html">Try the live demo</a>
+      <a class="btn btn-secondary" href="/guide.html">See how it works</a>
+    </div>
+    <p class="hero-note">No account needed — just enter a suburb and search.</p>
+  </section>
+
+  <div class="showcase">
+    <img class="shot-light" src="/assets/step-results-crop.png" alt="Parcel Scout results table showing value scores, zoning, and planning overlays for real listings" />
+    <img class="shot-dark" src="/assets/step-results-crop-dark.png" alt="Parcel Scout results table showing value scores, zoning, and planning overlays for real listings" />
   </div>
-</section>
 
-<div class="card search-card">
-  <form id="searchForm">
-    <div class="field-group-label icon-location">Location</div>
-    <div class="field-row">
-      <div class="field suburb-field">
-        <label>Suburb</label>
-        <input name="suburb" id="suburbInput" placeholder="Berwick" autocomplete="off" required />
-        <input type="hidden" name="postcode" id="postcodeInput" />
-        <ul class="suburb-dropdown" id="suburbDropdown"></ul>
+  <section>
+    <div class="section-label">Why Parcel Scout</div>
+    <h2 class="section-title">Everything you'd normally check by hand, in one search</h2>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Value scoring vs sold comps</h3>
+        <p>Every listing gets a 0–100 score blending location quality and price against recent sold comparables in that suburb — not just a raw list price.</p>
       </div>
-      <div class="field">
-        <label>State</label>
-        <select name="state">
-          <option value="vic" selected>VIC</option>
-        </select>
+      <div class="feature-card">
+        <div class="feature-icon">🗺️</div>
+        <h3>Planning overlays &amp; zoning</h3>
+        <p>See heritage, bushfire, flood and other planning overlays plus the base zoning for every result, pulled straight from Victoria's official planning data.</p>
       </div>
-      <div class="field">
-        <label>Location type</label>
-        <select name="location_type">
-          <option value="" selected>Any</option>
-          <option value="infill">Infill / established only</option>
-          <option value="greenfield">Greenfield only</option>
-        </select>
+      <div class="feature-card">
+        <div class="feature-icon">🚉</div>
+        <h3>Distance to the nearest station</h3>
+        <p>Location scoring factors in whether a property is established or greenfield, and how close it is to the nearest train station.</p>
       </div>
-      <div class="field">
-        <label>Max distance to train station (km)</label>
-        <input name="max_station_distance_km" type="number" step="0.5" placeholder="3" />
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Live listing search</h3>
+        <p>Real, current listings — filtered by price, land size, and sale method, with results ranked so the best-value ones surface first.</p>
       </div>
     </div>
+  </section>
 
-    <div class="field-group-label icon-price">Price &amp; land size</div>
-    <div class="field-row">
-      <div class="field">
-        <label>Price min</label>
-        <input name="price_min" class="money-input" inputmode="numeric" placeholder="500,000" />
+  <section>
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Three steps, one search</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Enter a suburb</h3>
+        <p>Add any filters you care about — price range, land size, sale method.</p>
       </div>
-      <div class="field">
-        <label>Price max</label>
-        <input name="price_max" class="money-input" inputmode="numeric" placeholder="900,000" />
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>We score every listing</h3>
+        <p>Location, price-vs-comps, and overlay risk are blended into one value score per result.</p>
       </div>
-      <div class="field">
-        <label>Land size min (sqm)</label>
-        <input name="land_min" class="money-input" inputmode="numeric" placeholder="500" />
-      </div>
-      <div class="field">
-        <label>Land size max (sqm)</label>
-        <input name="land_max" class="money-input" inputmode="numeric" placeholder="1,000" />
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>You see the full picture</h3>
+        <p>Zoning, overlays, and station distance are all right there — no separate lookups needed.</p>
       </div>
     </div>
+  </section>
 
-    <div class="field-group-label icon-options">Sale &amp; search options</div>
-    <div class="field-row">
-      <div class="field">
-        <label>Sale method</label>
-        <select name="sale_method">
-          <option value="" selected>Any</option>
-          <option value="private_treaty">Private treaty only (exclude auctions)</option>
-          <option value="auction">Auction only</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Max pages</label>
-        <input name="max_pages" type="number" value="3" min="1" max="10" />
-      </div>
-    </div>
-
-    <div class="actions">
-      <button type="submit" id="submitBtn">Search</button>
-      <span class="spinner" id="spinner"></span>
-      <span class="status" id="status"></span>
-    </div>
-  </form>
-</div>
-
-<div class="card results-card" id="resultsCard" style="display:none">
-  <div class="results-header">
-    <h2>Results</h2>
-    <span class="results-count" id="resultsCount"></span>
+  <div class="cta-card">
+    <h2>Want to see it running on a suburb you know?</h2>
+    <p>Get in touch and I'll walk you through it.</p>
+    <a class="btn btn-primary" href="mailto:dylana057@gmail.com?subject=Parcel%20Scout">Get in touch</a>
   </div>
-  <table id="resultsTable" style="display:none">
-    <thead>
-      <tr><th>Value score</th><th>Address</th><th>Price</th><th>Land size</th><th>Location</th><th>Zoning</th><th>Overlays</th><th>Link</th></tr>
-    </thead>
-    <tbody id="resultsBody"></tbody>
-  </table>
-  <div class="empty-state" id="emptyState" style="display:none">No listings matched your filters.</div>
-</div>
 
-<footer>Parcel Scout — VIC property search, value scoring &amp; planning lookup</footer>
+  <footer>Parcel Scout — VIC property search, value scoring &amp; planning lookup</footer>
 </div>
 
 <script>
-function scoreColor(score) {
-  if (score >= 70) return 'var(--score-good)';
-  if (score >= 40) return 'var(--score-mid)';
-  return 'var(--score-bad)';
-}
-
-const form = document.getElementById('searchForm');
-const statusEl = document.getElementById('status');
-const spinner = document.getElementById('spinner');
-const submitBtn = document.getElementById('submitBtn');
-const resultsCard = document.getElementById('resultsCard');
-const resultsCount = document.getElementById('resultsCount');
-const table = document.getElementById('resultsTable');
-const emptyState = document.getElementById('emptyState');
-const body = document.getElementById('resultsBody');
-
-const suburbInput = document.getElementById('suburbInput');
-const suburbDropdown = document.getElementById('suburbDropdown');
-let suburbActiveIndex = -1;
-let allSuburbs = [];
-
-// Fetched once and filtered entirely client-side: the upstream gazetteer
-// service takes 1s+ per request, which made a live per-keystroke query feel
-// sluggish. The full VIC locality list is only ~3,300 short entries, so
-// it's cheap to cache in the backend and load into the page once instead.
-fetch('/api/suburbs').then((r) => r.json()).then((data) => {
-  allSuburbs = data.results || [];
-}).catch(() => {});
-
-function selectSuburb(entry) {
-  suburbInput.value = entry.name;
-  postcodeInput.value = entry.postcode || '';
-  closeSuburbDropdown();
-}
-
-function closeSuburbDropdown() {
-  suburbDropdown.classList.remove('open');
-  suburbDropdown.innerHTML = '';
-  suburbActiveIndex = -1;
-}
-
-function renderSuburbOptions(entries) {
-  suburbDropdown.innerHTML = '';
-  suburbActiveIndex = -1;
-  if (!entries.length) {
-    closeSuburbDropdown();
-    return;
-  }
-  for (const entry of entries) {
-    const li = document.createElement('li');
-    li.textContent = entry.postcode ? `${entry.name} ${entry.postcode}` : entry.name;
-    li.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      selectSuburb(entry);
-    });
-    suburbDropdown.appendChild(li);
-  }
-  suburbDropdown.classList.add('open');
-}
-
-function setSuburbActive(index) {
-  const items = suburbDropdown.querySelectorAll('li');
-  items.forEach((el) => el.classList.remove('active'));
-  if (index >= 0 && index < items.length) {
-    items[index].classList.add('active');
-    items[index].scrollIntoView({ block: 'nearest' });
-  }
-  suburbActiveIndex = index;
-}
-
-let suburbMatches = [];
-
-suburbInput.addEventListener('input', () => {
-  postcodeInput.value = '';  // free text no longer matches a resolved postcode until re-selected
-  const q = suburbInput.value.trim().toLowerCase();
-  if (q.length < 2) {
-    closeSuburbDropdown();
-    return;
-  }
-  const starts = allSuburbs.filter((s) => s.name.toLowerCase().startsWith(q));
-  const contains = allSuburbs.filter((s) => !s.name.toLowerCase().startsWith(q) && s.name.toLowerCase().includes(q));
-  suburbMatches = [...starts, ...contains].slice(0, 8);
-  renderSuburbOptions(suburbMatches);
-});
-
-suburbInput.addEventListener('keydown', (e) => {
-  const items = suburbDropdown.querySelectorAll('li');
-  if (!suburbDropdown.classList.contains('open') || !items.length) return;
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    setSuburbActive((suburbActiveIndex + 1) % items.length);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    setSuburbActive((suburbActiveIndex - 1 + items.length) % items.length);
-  } else if (e.key === 'Enter' && suburbActiveIndex >= 0) {
-    e.preventDefault();
-    selectSuburb(suburbMatches[suburbActiveIndex]);
-  } else if (e.key === 'Escape') {
-    closeSuburbDropdown();
-  }
-});
-
-suburbInput.addEventListener('blur', () => closeSuburbDropdown());
-
-function parseCommaNumber(raw) {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, '');
-  return digits ? Number(digits) : null;
-}
-
-document.querySelectorAll('.money-input').forEach((input) => {
-  input.addEventListener('input', () => {
-    const digits = input.value.replace(/[^\d]/g, '');
-    const cursorFromEnd = input.value.length - input.selectionStart;
-    input.value = digits ? Number(digits).toLocaleString('en-AU') : '';
-    const pos = Math.max(0, input.value.length - cursorFromEnd);
-    input.setSelectionRange(pos, pos);
-  });
-});
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(form);
-  const payload = {
-    suburb: fd.get('suburb'),
-    state: fd.get('state'),
-    postcode: fd.get('postcode') || null,
-    price_min: parseCommaNumber(fd.get('price_min')),
-    price_max: parseCommaNumber(fd.get('price_max')),
-    land_min: parseCommaNumber(fd.get('land_min')),
-    land_max: parseCommaNumber(fd.get('land_max')),
-    sale_method: fd.get('sale_method') || null,
-    location_type: fd.get('location_type') || null,
-    max_station_distance_km: fd.get('max_station_distance_km') ? Number(fd.get('max_station_distance_km')) : null,
-    max_pages: fd.get('max_pages') ? Number(fd.get('max_pages')) : 3,
-  };
-
-  statusEl.classList.remove('error');
-  statusEl.textContent = 'Searching (this can take 1-2 min — live browser scrape, sold-comps lookup for scoring, and overlay/zoning lookups)...';
-  spinner.classList.add('active');
-  submitBtn.disabled = true;
-  resultsCard.style.display = 'none';
-  table.style.display = 'none';
-  emptyState.style.display = 'none';
-  body.innerHTML = '';
-
-  try {
-    const resp = await fetch('/api/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-      statusEl.classList.add('error');
-      statusEl.textContent = `Error: ${resp.status} ${await resp.text()}`;
-      return;
-    }
-    const data = await resp.json();
-    statusEl.textContent = `Done.`;
-    resultsCount.textContent = `${data.count} result${data.count === 1 ? '' : 's'}`;
-    resultsCard.style.display = '';
-
-    for (const r of data.results) {
-      const tr = document.createElement('tr');
-      const overlays = r.overlay_result?.overlays || [];
-      const zones = r.overlay_result?.zones || [];
-      const overlayHtml = !r.overlay_result?.matched
-        ? '<span class="unmatched-note">address not matched</span>'
-        : overlays.length === 0
-          ? '<span class="muted-note">no overlays</span>'
-          : overlays.map(o => `<span class="badge overlay-badge" title="${o.description || ''}">${o.layer}</span>`).join('');
-      const zoneHtml = !r.overlay_result?.matched
-        ? '<span class="unmatched-note">—</span>'
-        : zones.length === 0
-          ? '<span class="muted-note">unknown</span>'
-          : zones.map(z => `<span class="badge zone-badge" title="${z.description || ''}">${z.code}</span>`).join('');
-      const score = r.value_score;
-      const scoreHtml = score === null || score === undefined
-        ? '<span class="muted-note">n/a</span>'
-        : `<span class="score-badge" style="background:${scoreColor(score)}">${score}</span>`;
-      const loc = r.location;
-      const locationHtml = !loc
-        ? '<span class="muted-note">unknown</span>'
-        : `<span class="location-type">${loc.location_type === 'greenfield' ? '🌱 Greenfield' : '🏙️ Infill'}</span>` +
-          (loc.nearest_station ? `<span class="station-note">${loc.nearest_station.distance_km}km to ${loc.nearest_station.name}</span>` : '');
-      tr.innerHTML = `
-        <td>${scoreHtml}</td>
-        <td>${r.address || '(no address)'}</td>
-        <td>${r.price_display || ''}</td>
-        <td>${r.land_size ? r.land_size + ' ' + (r.land_unit || 'sqm') : ''}</td>
-        <td>${locationHtml}</td>
-        <td>${zoneHtml}</td>
-        <td>${overlayHtml}</td>
-        <td>${r.url ? `<a class="view-link" href="${r.url}" target="_blank">View →</a>` : ''}</td>
-      `;
-      body.appendChild(tr);
-    }
-
-    if (data.count) {
-      table.style.display = '';
-      emptyState.style.display = 'none';
-    } else {
-      table.style.display = 'none';
-      emptyState.style.display = '';
-    }
-  } catch (err) {
-    statusEl.classList.add('error');
-    statusEl.textContent = 'Error: ' + err;
-  } finally {
-    spinner.classList.remove('active');
-    submitBtn.disabled = false;
-  }
-});
-
 const themeToggle = document.getElementById('themeToggle');
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
