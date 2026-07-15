@@ -36,15 +36,6 @@ def list_all_suburbs() -> list[dict]:
     return _cache
 
 
-def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    r = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(a))
-
-
 def find_suburb(name: str) -> dict | None:
     """Case-insensitive exact-name lookup, for resolving a batch search's
     center point to coordinates."""
@@ -55,17 +46,25 @@ def find_suburb(name: str) -> dict | None:
     return None
 
 
-def suburbs_within_radius(center_name: str, radius_km: float) -> list[dict]:
-    """All VIC localities within radius_km (straight-line) of center_name,
-    nearest first, including the center itself. Raises ValueError if
-    center_name doesn't match a known locality."""
+_KM_PER_DEGREE_LAT = 111.0
+
+
+def bounding_box_for(center_name: str, radius_km: float) -> tuple[float, float, float, float]:
+    """(north, west, south, east) lat/lon rectangle covering radius_km
+    around center_name - for realestate.com.au's boundingBox search param
+    (see scraper.py's build_area_search_url), which searches a whole area
+    in one query instead of looping over every suburb inside it. A
+    rectangle, not a true circle - same shape realestate.com.au's own
+    map-radius search produces. Raises ValueError if center_name doesn't
+    match a known locality."""
     center = find_suburb(center_name)
     if center is None:
         raise ValueError(f"Unknown suburb: {center_name!r}")
-    out = []
-    for s in list_all_suburbs():
-        dist = _haversine_km(center["lat"], center["lon"], s["lat"], s["lon"])
-        if dist <= radius_km:
-            out.append({**s, "distance_km": round(dist, 1)})
-    out.sort(key=lambda s: s["distance_km"])
-    return out
+    lat_delta = radius_km / _KM_PER_DEGREE_LAT
+    km_per_degree_lon = _KM_PER_DEGREE_LAT * math.cos(math.radians(center["lat"]))
+    lon_delta = radius_km / km_per_degree_lon
+    north = center["lat"] + lat_delta
+    south = center["lat"] - lat_delta
+    west = center["lon"] - lon_delta
+    east = center["lon"] + lon_delta
+    return (north, west, south, east)

@@ -111,6 +111,66 @@ def build_search_url(
     return url
 
 
+def _build_bounding_box_url(
+    kind: str,  # "buy" or "sold"
+    price_min: int | None,
+    price_max: int | None,
+    land_min: int | None,
+    land_max: int | None,
+    sale_method: str | None,
+    bounding_box: tuple[float, float, float, float],  # (north, west, south, east)
+    page: int,
+) -> str:
+    """A location-free search: instead of `in-{suburb}`, a boundingBox query
+    param covers an arbitrary area in one query - reverse-engineered from
+    realestate.com.au's own "surrounding suburbs"/map-pan search (list view,
+    not map view - it returns the same embedded ArgonautExchange structure
+    the rest of this module already parses, whereas the map view uses a
+    completely different, undocumented data shape)."""
+    segments = []
+    land_token = _range_token("size", land_min, land_max)
+    if land_token:
+        segments.append(land_token)
+    price_token = _range_token("between", price_min, price_max)
+    if price_token:
+        segments.append(price_token)
+    path = "-".join(segments)
+    url = f"https://www.realestate.com.au/{kind}/{path}/list-{page}" if path else f"https://www.realestate.com.au/{kind}/list-{page}"
+
+    north, west, south, east = bounding_box
+    query = [f"boundingBox={north},{west},{south},{east}"]
+    misc = SALE_METHOD_MISC.get(sale_method or "")
+    if misc:
+        query.append(f"misc={misc}")
+    query.append("source=refinement")
+    url += "?" + "&".join(query)
+    return url
+
+
+def build_area_search_url(
+    price_min: int | None,
+    price_max: int | None,
+    land_min: int | None,
+    land_max: int | None,
+    sale_method: str | None,
+    bounding_box: tuple[float, float, float, float],
+    page: int = 1,
+) -> str:
+    return _build_bounding_box_url("buy", price_min, price_max, land_min, land_max, sale_method, bounding_box, page)
+
+
+def build_area_sold_search_url(
+    price_min: int | None,
+    price_max: int | None,
+    land_min: int | None,
+    land_max: int | None,
+    sale_method: str | None,
+    bounding_box: tuple[float, float, float, float],
+    page: int = 1,
+) -> str:
+    return _build_bounding_box_url("sold", price_min, price_max, land_min, land_max, sale_method, bounding_box, page)
+
+
 def _extract_argonaut(html: str) -> dict | None:
     match = re.search(r"window\.ArgonautExchange\s*=\s*(\{.+?\});\s*(?:</script>|\n)", html, re.DOTALL)
     if not match:
@@ -336,6 +396,78 @@ async def search_listings(
                     "buySearch",
                     max_pages,
                     _normalise_listing,
+                )
+            finally:
+                await context.close()
+
+
+async def search_area_listings(
+    price_min: int | None,
+    price_max: int | None,
+    land_min: int | None,
+    land_max: int | None,
+    sale_method: str | None,
+    bounding_box: tuple[float, float, float, float],
+    max_pages: int = 10,
+) -> list[dict]:
+    """Same as search_listings, but for an arbitrary geographic area
+    (a bounding box around a center point + radius) rather than one named
+    suburb - one query covering however large an area, instead of looping
+    over every suburb inside it one at a time. See build_area_search_url."""
+    PROFILE_DIR.mkdir(exist_ok=True)
+    async with _browser_lock:
+        async with async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=str(PROFILE_DIR),
+                headless=False,
+                locale="en-AU",
+                viewport={"width": 1366, "height": 900},
+                proxy=_proxy_config(),
+            )
+            try:
+                return await _scrape_pages(
+                    context,
+                    lambda page_num: build_area_search_url(
+                        price_min, price_max, land_min, land_max, sale_method, bounding_box, page_num,
+                    ),
+                    "buySearch",
+                    max_pages,
+                    _normalise_listing,
+                )
+            finally:
+                await context.close()
+
+
+async def search_area_sold_listings(
+    price_min: int | None,
+    price_max: int | None,
+    land_min: int | None,
+    land_max: int | None,
+    sale_method: str | None,
+    bounding_box: tuple[float, float, float, float],
+    max_pages: int = 2,
+) -> list[dict]:
+    """Sold comps for an area search - same land/sale-method filtering
+    rationale as search_sold_listings, not filtered by price (see there)."""
+    PROFILE_DIR.mkdir(exist_ok=True)
+    async with _browser_lock:
+        async with async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=str(PROFILE_DIR),
+                headless=False,
+                locale="en-AU",
+                viewport={"width": 1366, "height": 900},
+                proxy=_proxy_config(),
+            )
+            try:
+                return await _scrape_pages(
+                    context,
+                    lambda page_num: build_area_sold_search_url(
+                        None, None, land_min, land_max, sale_method, bounding_box, page_num,
+                    ),
+                    "soldSearch",
+                    max_pages,
+                    _normalise_sold_listing,
                 )
             finally:
                 await context.close()

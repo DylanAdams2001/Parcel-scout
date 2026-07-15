@@ -1,10 +1,9 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from batch import router as batch_router
-from search import SearchRequest, run_search
+from search import AreaSearchRequest, SearchRequest, run_area_search, run_search
 from suburbs import list_all_suburbs
 
 app = FastAPI(title="Realestate + Overlay Search")
@@ -22,6 +21,12 @@ async def api_search(req: SearchRequest):
     return await run_search(req)
 
 
-app.include_router(batch_router)
+@app.post("/api/area-search")
+async def api_area_search(req: AreaSearchRequest):
+    try:
+        return await run_area_search(req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

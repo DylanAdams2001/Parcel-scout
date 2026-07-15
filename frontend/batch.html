@@ -119,26 +119,21 @@
   }
   button:hover { background: var(--primary-hover); }
   button:active { transform: translateY(1px); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button.secondary { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
-  button.secondary:hover { background: var(--row-hover); }
+  button:disabled { opacity: 0.6; cursor: default; }
 
-  .preview-box {
-    display: none; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
-    padding: 1rem 1.1rem; margin-top: 1.2rem; font-size: 0.88rem;
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
   }
-  .preview-box.visible { display: block; }
-  .preview-box strong { color: var(--text); }
-  .preview-suburbs { color: var(--muted); font-size: 0.82rem; margin-top: 0.4rem; line-height: 1.6; }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .status { color: var(--muted); font-size: 0.88rem; }
   .status.error { color: var(--score-bad); }
-
-  .progress-card { display: none; }
-  .progress-card.visible { display: block; }
-  .progress-bar-track { background: var(--bg); border-radius: 999px; height: 0.55rem; overflow: hidden; border: 1px solid var(--border); }
-  .progress-bar-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s; }
-  .progress-meta { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; }
 
   .results-card { padding: 0; overflow: hidden; }
   .results-header { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); }
@@ -163,7 +158,7 @@
   .station-note { font-size: 0.75rem; color: var(--muted); display: block; margin-top: 0.1rem; }
   a.view-link { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.82rem; }
   a.view-link:hover { text-decoration: underline; }
-  .suburb-tag { font-size: 0.78rem; color: var(--muted); }
+  .empty-state { padding: 3rem 1.5rem; text-align: center; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -185,10 +180,10 @@
 
 <div class="page">
   <h1>Area search</h1>
-  <p class="subtitle">Search every suburb within a radius of a point, one at a time, and see the best-value results across the whole area in one ranked list. This runs in the background and can take a while — the preview below gives an honest time estimate before you commit.</p>
+  <p class="subtitle">Search a whole area around a point in one go — not suburb by suburb, one combined query covering the full radius, so even a wide area comes back in about the same time as a normal search.</p>
 
   <div class="card">
-    <form id="batchForm">
+    <form id="areaForm">
       <div class="field-group-label">Area</div>
       <div class="field-row">
         <div class="field">
@@ -198,7 +193,7 @@
         </div>
         <div class="field">
           <label>Radius (km)</label>
-          <input name="radius_km" type="number" min="1" max="50" value="10" required />
+          <input name="radius_km" type="number" min="1" max="100" value="15" required />
         </div>
       </div>
 
@@ -245,30 +240,17 @@
           <input name="max_station_distance_km" type="number" step="0.5" placeholder="3" />
         </div>
         <div class="field">
-          <label>Pages per suburb</label>
-          <input name="max_pages" type="number" value="2" min="1" max="5" />
+          <label>Max pages</label>
+          <input name="max_pages" type="number" value="10" min="1" max="30" />
         </div>
       </div>
 
       <div class="actions">
-        <button type="button" id="previewBtn">Preview area</button>
-        <button type="submit" id="startBtn" class="secondary" disabled>Start batch search</button>
+        <button type="submit" id="submitBtn">Search area</button>
+        <span class="spinner" id="spinner"></span>
         <span class="status" id="status"></span>
       </div>
-
-      <div class="preview-box" id="previewBox">
-        <div><strong id="previewCount"></strong> in range — estimated <strong id="previewTime"></strong>.</div>
-        <div class="preview-suburbs" id="previewSuburbs"></div>
-      </div>
     </form>
-  </div>
-
-  <div class="card progress-card" id="progressCard">
-    <div class="progress-meta">
-      <span id="progressLabel">Starting…</span>
-      <span id="progressCount"></span>
-    </div>
-    <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
   </div>
 
   <div class="card results-card" id="resultsCard" style="display:none">
@@ -278,10 +260,11 @@
     </div>
     <table id="resultsTable" style="display:none">
       <thead>
-        <tr><th>Value score</th><th>Suburb</th><th>Address</th><th>Price</th><th>Land size</th><th>Location</th><th>Zoning</th><th>Overlays</th><th>Link</th></tr>
+        <tr><th>Value score</th><th>Address</th><th>Price</th><th>Land size</th><th>Location</th><th>Zoning</th><th>Overlays</th><th>Link</th></tr>
       </thead>
       <tbody id="resultsBody"></tbody>
     </table>
+    <div class="empty-state" id="emptyState" style="display:none">No listings matched your filters.</div>
   </div>
 </div>
 
@@ -292,26 +275,19 @@ function scoreColor(score) {
   return 'var(--score-bad)';
 }
 
-const form = document.getElementById('batchForm');
+const form = document.getElementById('areaForm');
 const centerInput = document.getElementById('centerInput');
 const suburbDropdown = document.getElementById('suburbDropdown');
-const previewBtn = document.getElementById('previewBtn');
-const startBtn = document.getElementById('startBtn');
+const submitBtn = document.getElementById('submitBtn');
+const spinner = document.getElementById('spinner');
 const statusEl = document.getElementById('status');
-const previewBox = document.getElementById('previewBox');
-const previewCount = document.getElementById('previewCount');
-const previewTime = document.getElementById('previewTime');
-const previewSuburbs = document.getElementById('previewSuburbs');
-const progressCard = document.getElementById('progressCard');
-const progressLabel = document.getElementById('progressLabel');
-const progressCount = document.getElementById('progressCount');
-const progressFill = document.getElementById('progressFill');
 const resultsCard = document.getElementById('resultsCard');
 const resultsCount = document.getElementById('resultsCount');
 const table = document.getElementById('resultsTable');
+const emptyState = document.getElementById('emptyState');
 const body = document.getElementById('resultsBody');
 
-// --- suburb autocomplete (center point only) ---
+// --- suburb autocomplete (center point) ---
 let allSuburbs = [];
 let suburbActiveIndex = -1;
 fetch('/api/suburbs').then((r) => r.json()).then((data) => { allSuburbs = data.results || []; }).catch(() => {});
@@ -332,14 +308,12 @@ function renderSuburbOptions(entries) {
       e.preventDefault();
       centerInput.value = entry.name;
       closeSuburbDropdown();
-      resetPreview();
     });
     suburbDropdown.appendChild(li);
   }
   suburbDropdown.classList.add('open');
 }
 centerInput.addEventListener('input', () => {
-  resetPreview();
   const q = centerInput.value.trim().toLowerCase();
   if (q.length < 2) { closeSuburbDropdown(); return; }
   const starts = allSuburbs.filter((s) => s.name.toLowerCase().startsWith(q));
@@ -363,101 +337,6 @@ function parseCommaNumber(raw) {
   const digits = raw.replace(/[^\d]/g, '');
   return digits ? Number(digits) : null;
 }
-
-function resetPreview() {
-  previewBox.classList.remove('visible');
-  startBtn.disabled = true;
-}
-
-function collectFilters(fd) {
-  return {
-    price_min: parseCommaNumber(fd.get('price_min')),
-    price_max: parseCommaNumber(fd.get('price_max')),
-    land_min: parseCommaNumber(fd.get('land_min')),
-    land_max: parseCommaNumber(fd.get('land_max')),
-    sale_method: fd.get('sale_method') || null,
-    location_type: fd.get('location_type') || null,
-    max_station_distance_km: fd.get('max_station_distance_km') ? Number(fd.get('max_station_distance_km')) : null,
-    max_pages: fd.get('max_pages') ? Number(fd.get('max_pages')) : 2,
-  };
-}
-
-previewBtn.addEventListener('click', async () => {
-  const fd = new FormData(form);
-  const center = fd.get('center');
-  const radius = fd.get('radius_km');
-  if (!center || !radius) {
-    statusEl.classList.add('error');
-    statusEl.textContent = 'Enter a center suburb and radius first.';
-    return;
-  }
-  statusEl.classList.remove('error');
-  statusEl.textContent = 'Checking area…';
-  try {
-    const resp = await fetch(`/api/batch/preview?center=${encodeURIComponent(center)}&radius_km=${encodeURIComponent(radius)}`);
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      statusEl.classList.add('error');
-      statusEl.textContent = err.detail || `Error: ${resp.status}`;
-      return;
-    }
-    const data = await resp.json();
-    statusEl.textContent = '';
-    previewCount.textContent = `${data.suburb_count} suburb${data.suburb_count === 1 ? '' : 's'}`;
-    previewTime.textContent = `~${data.estimated_minutes} min`;
-    previewSuburbs.textContent = data.suburbs.join(', ');
-    previewBox.classList.add('visible');
-    startBtn.disabled = false;
-  } catch (err) {
-    statusEl.classList.add('error');
-    statusEl.textContent = 'Error: ' + err;
-  }
-});
-
-let pollTimer = null;
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(form);
-  const payload = {
-    center: fd.get('center'),
-    radius_km: Number(fd.get('radius_km')),
-    ...collectFilters(fd),
-  };
-
-  startBtn.disabled = true;
-  previewBtn.disabled = true;
-  statusEl.classList.remove('error');
-  statusEl.textContent = 'Starting batch search…';
-  resultsCard.style.display = 'none';
-  table.style.display = 'none';
-  body.innerHTML = '';
-
-  try {
-    const resp = await fetch('/api/batch/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      statusEl.classList.add('error');
-      statusEl.textContent = err.detail || `Error: ${resp.status}`;
-      startBtn.disabled = false;
-      previewBtn.disabled = false;
-      return;
-    }
-    const data = await resp.json();
-    statusEl.textContent = `Running across ${data.suburb_count} suburbs…`;
-    progressCard.classList.add('visible');
-    pollJob(data.job_id);
-  } catch (err) {
-    statusEl.classList.add('error');
-    statusEl.textContent = 'Error: ' + err;
-    startBtn.disabled = false;
-    previewBtn.disabled = false;
-  }
-});
 
 function renderResults(results) {
   body.innerHTML = '';
@@ -486,7 +365,6 @@ function renderResults(results) {
         (loc.nearest_station ? `<span class="station-note">${loc.nearest_station.distance_km}km to ${loc.nearest_station.name}</span>` : '');
     tr.innerHTML = `
       <td>${scoreHtml}</td>
-      <td class="suburb-tag">${r.suburb || ''}</td>
       <td>${r.address || '(no address)'}</td>
       <td>${r.price_display || ''}</td>
       <td>${r.land_size ? r.land_size + ' ' + (r.land_unit || 'sqm') : ''}</td>
@@ -498,44 +376,59 @@ function renderResults(results) {
     body.appendChild(tr);
   }
   table.style.display = results.length ? '' : 'none';
+  emptyState.style.display = results.length ? 'none' : '';
 }
 
-async function pollJob(jobId) {
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  const payload = {
+    center: fd.get('center'),
+    radius_km: Number(fd.get('radius_km')),
+    price_min: parseCommaNumber(fd.get('price_min')),
+    price_max: parseCommaNumber(fd.get('price_max')),
+    land_min: parseCommaNumber(fd.get('land_min')),
+    land_max: parseCommaNumber(fd.get('land_max')),
+    sale_method: fd.get('sale_method') || null,
+    location_type: fd.get('location_type') || null,
+    max_station_distance_km: fd.get('max_station_distance_km') ? Number(fd.get('max_station_distance_km')) : null,
+    max_pages: fd.get('max_pages') ? Number(fd.get('max_pages')) : 10,
+  };
+
+  statusEl.classList.remove('error');
+  statusEl.textContent = 'Searching the area (this can take a few minutes — live browser scrape across the whole radius, sold-comps lookup, and overlay/zoning lookups)...';
+  spinner.classList.add('active');
+  submitBtn.disabled = true;
+  resultsCard.style.display = 'none';
+  table.style.display = 'none';
+  emptyState.style.display = 'none';
+  body.innerHTML = '';
+
   try {
-    const resp = await fetch(`/api/batch/${jobId}`);
+    const resp = await fetch('/api/area-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
       statusEl.classList.add('error');
-      statusEl.textContent = `Error checking job: ${resp.status}`;
+      statusEl.textContent = err.detail || `Error: ${resp.status}`;
       return;
     }
-    const job = await resp.json();
-    const pct = job.total ? Math.round((job.completed / job.total) * 100) : 0;
-    progressFill.style.width = pct + '%';
-    progressLabel.textContent = job.status === 'done'
-      ? 'Done'
-      : `Searching ${job.current_suburb || '…'}`;
-    progressCount.textContent = `${job.completed} / ${job.total} suburbs`;
-
-    resultsCard.style.display = job.results.length ? '' : 'none';
-    resultsCount.textContent = `${job.results.length} result${job.results.length === 1 ? '' : 's'}`;
-    renderResults(job.results);
-
-    if (job.status === 'done') {
-      statusEl.textContent = `Done — searched ${job.total} suburbs.`;
-      const errorCount = Object.keys(job.suburb_errors || {}).length;
-      if (errorCount) {
-        statusEl.textContent += ` (${errorCount} suburb${errorCount === 1 ? '' : 's'} failed and ${errorCount === 1 ? 'was' : 'were'} skipped.)`;
-      }
-      startBtn.disabled = false;
-      previewBtn.disabled = false;
-      return;
-    }
-    pollTimer = setTimeout(() => pollJob(jobId), 4000);
+    const data = await resp.json();
+    statusEl.textContent = 'Done.';
+    resultsCount.textContent = `${data.count} result${data.count === 1 ? '' : 's'}`;
+    resultsCard.style.display = '';
+    renderResults(data.results);
   } catch (err) {
     statusEl.classList.add('error');
     statusEl.textContent = 'Error: ' + err;
+  } finally {
+    spinner.classList.remove('active');
+    submitBtn.disabled = false;
   }
-}
+});
 
 const themeToggle = document.getElementById('themeToggle');
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
