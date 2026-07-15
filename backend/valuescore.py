@@ -43,7 +43,14 @@ _NUMBER = re.compile(r"[\d,.]+")
 LOCATION_WEIGHT = 0.6
 PRICE_WEIGHT = 0.4
 _STATION_DECAY_KM = 4  # station_score halves roughly every ~2.8km; see location_component()
-_PRICE_LOG_SCALE = 55  # smaller = harder to reach a high price score; see price_component()
+_PRICE_LOG_SCALE = 120  # smaller = harder to reach a high price score; see price_component()
+# Calibrated against a real example: a listing ~24% below the suburb's
+# median $/sqm with a near-max location component (~96) previously scored
+# 78 - too conservative for what's genuinely a strong buy. 120 moves that
+# to ~86, and a deeper ~50% discount at the same location to ~92-94,
+# leaving headroom above it for a location that's also literally perfect.
+# This also makes the symmetric case - a listing priced ABOVE median -
+# get punished harder for the same reason, which is intentional.
 _UNKNOWN_PRICE_SCORE = 30  # below the neutral 50: an undisclosed price is a real drawback
 # (can't confirm it's actually cheap) but shouldn't zero out an otherwise great listing.
 
