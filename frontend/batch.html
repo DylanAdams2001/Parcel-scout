@@ -138,7 +138,13 @@
   .results-card { padding: 0; overflow: hidden; }
   .results-header { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); }
   .results-header h2 { font-size: 0.95rem; margin: 0; font-weight: 700; }
+  .results-header-actions { display: flex; align-items: center; gap: 0.7rem; }
   .results-count { font-size: 0.78rem; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 0.15rem 0.65rem; }
+  .download-btn {
+    padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 600;
+    background: var(--card-bg); color: var(--text); border: 1px solid var(--border);
+  }
+  .download-btn:hover { background: var(--row-hover); }
   table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
   th {
     text-align: left; padding: 0.6rem 0.9rem; font-size: 0.72rem; font-weight: 700;
@@ -256,7 +262,10 @@
   <div class="card results-card" id="resultsCard" style="display:none">
     <div class="results-header">
       <h2>Results</h2>
-      <span class="results-count" id="resultsCount"></span>
+      <div class="results-header-actions">
+        <span class="results-count" id="resultsCount"></span>
+        <button type="button" class="download-btn" id="downloadBtn">Download CSV</button>
+      </div>
     </div>
     <table id="resultsTable" style="display:none">
       <thead>
@@ -286,6 +295,8 @@ const resultsCount = document.getElementById('resultsCount');
 const table = document.getElementById('resultsTable');
 const emptyState = document.getElementById('emptyState');
 const body = document.getElementById('resultsBody');
+const downloadBtn = document.getElementById('downloadBtn');
+let lastResults = [];
 
 // --- suburb autocomplete (center point) ---
 let allSuburbs = [];
@@ -338,7 +349,50 @@ function parseCommaNumber(raw) {
   return digits ? Number(digits) : null;
 }
 
+function csvEscape(value) {
+  const s = String(value ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function resultsToCsv(results) {
+  const headers = ['Value score', 'Address', 'Price', 'Land size', 'Location type', 'Nearest station', 'Zoning', 'Overlays', 'Link'];
+  const rows = results.map((r) => {
+    const loc = r.location;
+    const locationType = loc ? (loc.location_type === 'greenfield' ? 'Greenfield' : 'Infill') : '';
+    const station = loc?.nearest_station ? `${loc.nearest_station.distance_km}km to ${loc.nearest_station.name}` : '';
+    const zones = (r.overlay_result?.zones || []).map((z) => z.code).join('; ');
+    const overlays = (r.overlay_result?.overlays || []).map((o) => o.layer).join('; ');
+    return [
+      r.value_score ?? '',
+      r.address || '',
+      r.price_display || '',
+      r.land_size ? `${r.land_size} ${r.land_unit || 'sqm'}` : '',
+      locationType,
+      station,
+      zones,
+      overlays,
+      r.url || '',
+    ];
+  });
+  return [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\r\n');
+}
+
+downloadBtn.addEventListener('click', () => {
+  const csv = resultsToCsv(lastResults);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const center = (centerInput.value || 'area').trim().toLowerCase().replace(/\s+/g, '-');
+  a.href = url;
+  a.download = `parcel-scout-${center}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
 function renderResults(results) {
+  lastResults = results;
   body.innerHTML = '';
   for (const r of results) {
     const tr = document.createElement('tr');
