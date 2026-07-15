@@ -7,23 +7,30 @@ size barely at all):
 
   - 60% location: infill (established area) vs greenfield, and distance to
     the nearest train station. Closer/infill scores higher.
-  - 40% price: price-per-sqm-of-land vs the median of recent sold
-    comparables in the suburb. Cheaper-than-median scores higher.
+  - 40% price: this listing's price vs the median price of comparable
+    recent sold listings in the suburb (same property type, similar land
+    size - see median_sold_price()). Cheaper-than-comparable-median scores
+    higher. Deliberately NOT price-per-sqm: land value isn't linear with
+    size, so dividing by exact sqm distorts the comparison between
+    different-sized blocks more than it corrects for it - comparability
+    comes from matching similarly-sized comps instead.
   - overlay risk is then subtracted as a penalty on top (see
     OVERLAY_PENALTY_WEIGHTS below) - a real cost/restriction to a buyer,
     not just an informational badge.
 
 50 on either sub-component means "average/neutral", not "good" - a listing
-priced exactly at the suburb median, or with unknown location data, isn't
-being rewarded or punished, just left in the middle.
+priced exactly at the comparable-comps median, or with unknown location
+data, isn't being rewarded or punished, just left in the middle.
 
 Known limitations, worth keeping in mind when reading the score:
-- Land size is the only size signal used for the price component (no
+- The price comparison only controls for property type and land size (no
   adjustment for dwelling size, bedrooms, condition, renovations) - two
-  houses on identical land can have very different real value.
+  houses on similar land can have very different real value.
 - The sold-comps sample is whatever realestate.com.au returns for the
-  suburb (up to a couple of pages) - a small/unusual suburb may not have
-  enough same-type comps for a stable median.
+  suburb (one page), further narrowed to comparable type/size - a
+  small/unusual suburb may not have enough matching comps for a stable
+  median, in which case the size filter is dropped (see
+  median_sold_price()).
 - Infill/greenfield classification is itself a best-effort heuristic (see
   location_signals.py) combining multiple government datasets, none of
   which is individually authoritative - treat it as a strong hint, not
@@ -89,55 +96,74 @@ def parse_price(display: str | None) -> float | None:
     return sum(numbers) / len(numbers)
 
 
-def price_per_sqm(price: float | None, land_size: str | float | None) -> float | None:
-    if price is None or land_size is None:
-        return None
+_LAND_SIZE_BAND_PCT = 0.3  # comps within +/-30% of the listing's own land size count as "comparable"
+
+
+def _land_size_close(comp_land: str | float | None, target_land: float, band_pct: float) -> bool:
     try:
-        size = float(land_size)
+        size = float(comp_land)
     except (TypeError, ValueError):
-        return None
+        return False
     if size <= 0:
-        return None
-    return price / size
+        return False
+    return abs(size - target_land) / target_land <= band_pct
 
 
-def median_price_per_sqm(sold_comps: list[dict], property_type: str | None) -> float | None:
-    """Median $/sqm across sold comps, preferring same property type but
-    falling back to all comps if there aren't enough (< 3) of that type."""
-    def rates(comps):
+def median_sold_price(
+    sold_comps: list[dict], property_type: str | None, land_size: float | None
+) -> float | None:
+    """Median sold price among comparable comps - same property type
+    (falling back to all types if there aren't enough (< 3) of that type),
+    and, if this listing's land size is known, within _LAND_SIZE_BAND_PCT
+    of it (falling back to no size constraint if that leaves too few (< 3)
+    comps). Deliberately compares raw price, not $/sqm - land value isn't
+    linear with size, so dividing by exact sqm distorts the comparison
+    more than it corrects for it. Comparability comes from matching
+    similar-sized comps, not from a per-sqm rate."""
+    def prices(comps):
         out = []
         for c in comps:
-            rate = price_per_sqm(parse_price(c.get("price_display")), c.get("land_size"))
-            if rate:
-                out.append(rate)
+            p = parse_price(c.get("price_display"))
+            if p:
+                out.append(p)
         return out
 
-    same_type = [c for c in sold_comps if property_type and c.get("property_type") == property_type]
-    values = rates(same_type)
-    if len(values) < 3:
-        values = rates(sold_comps)
+    pool = [c for c in sold_comps if property_type and c.get("property_type") == property_type]
+    if len(pool) < 3:
+        pool = sold_comps
+
+    if land_size:
+        sized_pool = [c for c in pool if _land_size_close(c.get("land_size"), land_size, _LAND_SIZE_BAND_PCT)]
+        if len(sized_pool) >= 3:
+            pool = sized_pool
+
+    values = prices(pool)
     if not values:
         return None
     return statistics.median(values)
 
 
 def price_component(listing: dict, sold_comps: list[dict]) -> float | None:
-    """0-100, centered on 50 = priced right at the suburb median $/sqm.
-    Uses log(ratio) so a listing at half the median rate and one at double
-    the median rate move the score by the same amount in opposite
-    directions (a plain linear ratio isn't symmetric like that). Uses
-    _PRICE_LOG_SCALE (deliberately less steep than a "naive" curve) so it
-    takes a genuinely large discount to reach a high score, not just a
-    mildly-cheaper-than-average one. None if there's no usable price or
-    land size."""
+    """0-100, centered on 50 = priced right at the median of comparable
+    recent sales (see median_sold_price). Uses log(ratio) so a listing at
+    half the median price and one at double the median price move the
+    score by the same amount in opposite directions (a plain linear ratio
+    isn't symmetric like that). Uses _PRICE_LOG_SCALE (deliberately less
+    steep than a "naive" curve) so it takes a genuinely large discount to
+    reach a high score, not just a mildly-cheaper-than-average one. None
+    if there's no usable price."""
     price = parse_price(listing.get("price_display"))
-    rate = price_per_sqm(price, listing.get("land_size"))
-    if rate is None:
+    if price is None:
         return None
-    median_rate = median_price_per_sqm(sold_comps, listing.get("property_type"))
-    if not median_rate:
+    land_size = listing.get("land_size")
+    try:
+        land_size = float(land_size) if land_size is not None else None
+    except (TypeError, ValueError):
+        land_size = None
+    median_price = median_sold_price(sold_comps, listing.get("property_type"), land_size)
+    if not median_price:
         return None
-    ratio = rate / median_rate
+    ratio = price / median_price
     score = 50 - math.log(ratio) * _PRICE_LOG_SCALE
     return max(0.0, min(100.0, score))
 
