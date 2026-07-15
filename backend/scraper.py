@@ -229,10 +229,42 @@ def _normalise_sold_listing(raw: dict) -> dict:
 
 
 def build_sold_search_url(
-    suburb: str, state: str, postcode: str | None = None, page: int = 1
+    suburb: str,
+    state: str,
+    postcode: str | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    land_min: int | None = None,
+    land_max: int | None = None,
+    sale_method: str | None = None,
+    page: int = 1,
 ) -> str:
+    """Same filters as build_search_url, applied to the /sold/ comps
+    search too - an unfiltered "whole suburb" median mixes property types
+    and price tiers that aren't representative of what's actually being
+    searched (e.g. a $2M mansion's $/sqm skewing the median for a listing
+    in a $500-700k search)."""
     location = _slugify_suburb(suburb, state, postcode)
-    return f"https://www.realestate.com.au/sold/in-{quote(location)}/list-{page}"
+    segments = []
+    land_token = _range_token("size", land_min, land_max)
+    if land_token:
+        segments.append(land_token)
+    price_token = _range_token("between", price_min, price_max)
+    if price_token:
+        segments.append(price_token)
+    segments.append(f"in-{quote(location)}")
+    path = "-".join(segments)
+    url = f"https://www.realestate.com.au/sold/{path}/list-{page}"
+
+    query = []
+    misc = SALE_METHOD_MISC.get(sale_method or "")
+    if misc:
+        query.append(f"misc={misc}")
+    if land_token or price_token:
+        query.append("source=refinement")
+    if query:
+        url += "?" + "&".join(query)
+    return url
 
 
 async def _scrape_pages(
@@ -313,10 +345,17 @@ async def search_sold_listings(
     suburb: str,
     state: str,
     postcode: str | None = None,
+    price_min: int | None = None,
+    price_max: int | None = None,
+    land_min: int | None = None,
+    land_max: int | None = None,
+    sale_method: str | None = None,
     max_pages: int = 2,
 ) -> list[dict]:
     """Recently-sold comparables for the suburb, used as market-price data
-    for the value-score feature (see valuescore.py)."""
+    for the value-score feature (see valuescore.py). Filtered the same way
+    as the buy search, so the comps are actually representative of what's
+    being searched rather than the whole suburb's market."""
     PROFILE_DIR.mkdir(exist_ok=True)
     async with _browser_lock:
         async with async_playwright() as p:
@@ -330,7 +369,10 @@ async def search_sold_listings(
             try:
                 return await _scrape_pages(
                     context,
-                    lambda page_num: build_sold_search_url(suburb, state, postcode, page_num),
+                    lambda page_num: build_sold_search_url(
+                        suburb, state, postcode, price_min, price_max, land_min, land_max,
+                        sale_method, page_num,
+                    ),
                     "soldSearch",
                     max_pages,
                     _normalise_sold_listing,

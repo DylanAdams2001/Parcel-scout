@@ -66,13 +66,25 @@ async def run_search(req: SearchRequest) -> dict:
 
     sold_comps = []
     if listings:
-        # Fixed at 1 page regardless of the buy-side "pages per suburb"
-        # setting - sold comps only feed the price-vs-median calculation,
-        # not something a user is browsing, and one page (~20-25 comps) is
-        # normally plenty for a stable median. Kept small deliberately:
-        # this runs once per suburb, so it's a real time cost in batch mode.
+        # Same price/land/sale-method filters as the buy search, so the
+        # comps are representative of what's actually being searched
+        # rather than the whole suburb's market (a $2M mansion shouldn't
+        # skew the median for a $500-700k search). Fixed at 1 page
+        # regardless of the buy-side "pages per suburb" setting - sold
+        # comps only feed the price-vs-median calculation, not something a
+        # user browses, and one page (~20-25 comps) is normally plenty for
+        # a stable median. Kept small deliberately: this runs once per
+        # suburb, so it's a real time cost in batch mode.
         sold_comps = await search_sold_listings(
-            suburb=req.suburb, state=req.state, postcode=req.postcode, max_pages=1
+            suburb=req.suburb,
+            state=req.state,
+            postcode=req.postcode,
+            price_min=req.price_min,
+            price_max=req.price_max,
+            land_min=req.land_min,
+            land_max=req.land_max,
+            sale_method=req.sale_method,
+            max_pages=1,
         )
 
     async with httpx.AsyncClient() as client:
