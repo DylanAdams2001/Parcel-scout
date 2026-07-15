@@ -211,6 +211,8 @@ OVERLAY_PENALTY_WEIGHTS = {
     "LSIO": 15,  # Land Subject to Inundation Overlay - flood risk
     "FO": 15,  # Floodway Overlay - flood risk
     "SBO": 12,  # Special Building Overlay - flood/stormwater risk
+    "MAEO": 15,  # Melbourne Airport Environs Overlay - noise-affected, restricts noise-sensitive uses
+    "PSAEO": 15,  # Public Safety Airport Environs Overlay - noise + safety-affected, similar restrictions
     # Medium: real constraint on what can be done with the land, but
     # rarely a dealbreaker.
     "ESO": 8,  # Environmental Significance Overlay
