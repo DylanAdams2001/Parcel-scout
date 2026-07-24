@@ -234,6 +234,13 @@
           </select>
         </div>
         <div class="field">
+          <label>Property type</label>
+          <select name="property_type">
+            <option value="" selected>Any</option>
+            <option value="land">Land only (no knockdowns)</option>
+          </select>
+        </div>
+        <div class="field">
           <label>Location type</label>
           <select name="location_type">
             <option value="" selected>Any</option>
@@ -444,6 +451,7 @@ form.addEventListener('submit', async (e) => {
     land_min: parseCommaNumber(fd.get('land_min')),
     land_max: parseCommaNumber(fd.get('land_max')),
     sale_method: fd.get('sale_method') || null,
+    property_type: fd.get('property_type') || null,
     location_type: fd.get('location_type') || null,
     max_station_distance_km: fd.get('max_station_distance_km') ? Number(fd.get('max_station_distance_km')) : null,
     max_pages: fd.get('max_pages') ? Number(fd.get('max_pages')) : 10,

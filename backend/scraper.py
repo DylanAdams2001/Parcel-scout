@@ -76,6 +76,16 @@ SALE_METHOD_MISC = {
     "auction": "ex-private-sales",  # excludes private sales -> auction only
 }
 
+# realestate.com.au's own "Property type" filter (reverse-engineered the
+# same way as everything else here - driving their filter UI and reading
+# the resulting URL). Only "land" is wired up for now (the actual ask:
+# excluding established houses on projects that shouldn't be a knockdown),
+# but this is where more of their checkbox options would go if needed
+# (Townhouse, Acreage, Rural, etc. each get their own "property-{x}" slug).
+PROPERTY_TYPE_SEGMENT = {
+    "land": "property-land",
+}
+
 
 def build_search_url(
     suburb: str,
@@ -86,10 +96,14 @@ def build_search_url(
     land_min: int | None = None,
     land_max: int | None = None,
     sale_method: str | None = None,
+    property_type: str | None = None,
     page: int = 1,
 ) -> str:
     location = _slugify_suburb(suburb, state, postcode)
     segments = []
+    property_token = PROPERTY_TYPE_SEGMENT.get(property_type or "")
+    if property_token:
+        segments.append(property_token)
     land_token = _range_token("size", land_min, land_max)
     if land_token:
         segments.append(land_token)
@@ -104,7 +118,7 @@ def build_search_url(
     misc = SALE_METHOD_MISC.get(sale_method or "")
     if misc:
         query.append(f"misc={misc}")
-    if land_token or price_token:
+    if property_token or land_token or price_token:
         query.append("source=refinement")
     if query:
         url += "?" + "&".join(query)
@@ -118,6 +132,7 @@ def _build_bounding_box_url(
     land_min: int | None,
     land_max: int | None,
     sale_method: str | None,
+    property_type: str | None,
     bounding_box: tuple[float, float, float, float],  # (north, west, south, east)
     page: int,
 ) -> str:
@@ -128,6 +143,9 @@ def _build_bounding_box_url(
     the rest of this module already parses, whereas the map view uses a
     completely different, undocumented data shape)."""
     segments = []
+    property_token = PROPERTY_TYPE_SEGMENT.get(property_type or "")
+    if property_token:
+        segments.append(property_token)
     land_token = _range_token("size", land_min, land_max)
     if land_token:
         segments.append(land_token)
@@ -153,10 +171,11 @@ def build_area_search_url(
     land_min: int | None,
     land_max: int | None,
     sale_method: str | None,
+    property_type: str | None,
     bounding_box: tuple[float, float, float, float],
     page: int = 1,
 ) -> str:
-    return _build_bounding_box_url("buy", price_min, price_max, land_min, land_max, sale_method, bounding_box, page)
+    return _build_bounding_box_url("buy", price_min, price_max, land_min, land_max, sale_method, property_type, bounding_box, page)
 
 
 def build_area_sold_search_url(
@@ -165,10 +184,11 @@ def build_area_sold_search_url(
     land_min: int | None,
     land_max: int | None,
     sale_method: str | None,
+    property_type: str | None,
     bounding_box: tuple[float, float, float, float],
     page: int = 1,
 ) -> str:
-    return _build_bounding_box_url("sold", price_min, price_max, land_min, land_max, sale_method, bounding_box, page)
+    return _build_bounding_box_url("sold", price_min, price_max, land_min, land_max, sale_method, property_type, bounding_box, page)
 
 
 def _extract_argonaut(html: str) -> dict | None:
@@ -297,15 +317,20 @@ def build_sold_search_url(
     land_min: int | None = None,
     land_max: int | None = None,
     sale_method: str | None = None,
+    property_type: str | None = None,
     page: int = 1,
 ) -> str:
     """Same filters as build_search_url, applied to the /sold/ comps
     search too - an unfiltered "whole suburb" median mixes property types
     and price tiers that aren't representative of what's actually being
     searched (e.g. a $2M mansion's $/sqm skewing the median for a listing
-    in a $500-700k search)."""
+    in a $500-700k search). property_type especially matters here - land
+    sold comps must be compared against other land sales, not houses."""
     location = _slugify_suburb(suburb, state, postcode)
     segments = []
+    property_token = PROPERTY_TYPE_SEGMENT.get(property_type or "")
+    if property_token:
+        segments.append(property_token)
     land_token = _range_token("size", land_min, land_max)
     if land_token:
         segments.append(land_token)
@@ -320,7 +345,7 @@ def build_sold_search_url(
     misc = SALE_METHOD_MISC.get(sale_method or "")
     if misc:
         query.append(f"misc={misc}")
-    if land_token or price_token:
+    if property_token or land_token or price_token:
         query.append("source=refinement")
     if query:
         url += "?" + "&".join(query)
@@ -374,6 +399,7 @@ async def search_listings(
     land_min: int | None = None,
     land_max: int | None = None,
     sale_method: str | None = None,
+    property_type: str | None = None,
     max_pages: int = 3,
 ) -> list[dict]:
     PROFILE_DIR.mkdir(exist_ok=True)
@@ -391,7 +417,7 @@ async def search_listings(
                     context,
                     lambda page_num: build_search_url(
                         suburb, state, postcode, price_min, price_max, land_min, land_max,
-                        sale_method, page_num,
+                        sale_method, property_type, page_num,
                     ),
                     "buySearch",
                     max_pages,
@@ -407,6 +433,7 @@ async def search_area_listings(
     land_min: int | None,
     land_max: int | None,
     sale_method: str | None,
+    property_type: str | None,
     bounding_box: tuple[float, float, float, float],
     max_pages: int = 10,
 ) -> list[dict]:
@@ -428,7 +455,7 @@ async def search_area_listings(
                 return await _scrape_pages(
                     context,
                     lambda page_num: build_area_search_url(
-                        price_min, price_max, land_min, land_max, sale_method, bounding_box, page_num,
+                        price_min, price_max, land_min, land_max, sale_method, property_type, bounding_box, page_num,
                     ),
                     "buySearch",
                     max_pages,
@@ -444,6 +471,7 @@ async def search_area_sold_listings(
     land_min: int | None,
     land_max: int | None,
     sale_method: str | None,
+    property_type: str | None,
     bounding_box: tuple[float, float, float, float],
     max_pages: int = 2,
 ) -> list[dict]:
@@ -463,7 +491,7 @@ async def search_area_sold_listings(
                 return await _scrape_pages(
                     context,
                     lambda page_num: build_area_sold_search_url(
-                        None, None, land_min, land_max, sale_method, bounding_box, page_num,
+                        None, None, land_min, land_max, sale_method, property_type, bounding_box, page_num,
                     ),
                     "soldSearch",
                     max_pages,
@@ -482,6 +510,7 @@ async def search_sold_listings(
     land_min: int | None = None,
     land_max: int | None = None,
     sale_method: str | None = None,
+    property_type: str | None = None,
     max_pages: int = 2,
 ) -> list[dict]:
     """Recently-sold comparables for the suburb, used as market-price data
@@ -503,7 +532,7 @@ async def search_sold_listings(
                     context,
                     lambda page_num: build_sold_search_url(
                         suburb, state, postcode, price_min, price_max, land_min, land_max,
-                        sale_method, page_num,
+                        sale_method, property_type, page_num,
                     ),
                     "soldSearch",
                     max_pages,

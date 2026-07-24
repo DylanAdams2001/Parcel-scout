@@ -37,6 +37,7 @@ class SearchRequest(BaseModel):
     land_min: Optional[int] = None
     land_max: Optional[int] = None
     sale_method: Optional[str] = None  # "private_treaty", "auction", or None for any
+    property_type: Optional[str] = None  # "land", or None for any
     location_type: Optional[str] = None  # "infill", "greenfield", or None for any
     max_station_distance_km: Optional[float] = None
     max_pages: int = 3
@@ -50,6 +51,7 @@ class AreaSearchRequest(BaseModel):
     land_min: Optional[int] = None
     land_max: Optional[int] = None
     sale_method: Optional[str] = None
+    property_type: Optional[str] = None  # "land", or None for any
     location_type: Optional[str] = None
     max_station_distance_km: Optional[float] = None
     max_pages: int = 10
@@ -158,22 +160,25 @@ async def run_search(req: SearchRequest) -> dict:
         land_min=req.land_min,
         land_max=req.land_max,
         sale_method=req.sale_method,
+        property_type=req.property_type,
         max_pages=req.max_pages,
     )
     listings = [l for l in listings if _passes_land_filter(l, req.land_min, req.land_max)]
 
     sold_comps = []
     if listings:
-        # Land size + sale-method filters, like the buy search - both are
-        # legitimate "comparable properties" filters. Price is deliberately
-        # NOT filtered here: valuescore.py compares each listing's price
-        # against these comps, so pre-filtering the comps to the search's
-        # own price range would be circular (everything in a $500-700k
-        # search would trivially look "average" against comps that were
-        # only ever $500-700k to begin with). Fixed at 1 page regardless of
-        # the buy-side "pages per suburb" setting - sold comps only feed
-        # the price comparison, not something a user browses, and one page
-        # (~20-25 comps) is normally plenty.
+        # Land size + sale-method + property-type filters, like the buy
+        # search - all legitimate "comparable properties" filters (land
+        # listings must be compared against other land sales, not houses).
+        # Price is deliberately NOT filtered here: valuescore.py compares
+        # each listing's price against these comps, so pre-filtering the
+        # comps to the search's own price range would be circular
+        # (everything in a $500-700k search would trivially look "average"
+        # against comps that were only ever $500-700k to begin with).
+        # Fixed at 1 page regardless of the buy-side "pages per suburb"
+        # setting - sold comps only feed the price comparison, not
+        # something a user browses, and one page (~20-25 comps) is
+        # normally plenty.
         sold_comps = await search_sold_listings(
             suburb=req.suburb,
             state=req.state,
@@ -181,6 +186,7 @@ async def run_search(req: SearchRequest) -> dict:
             land_min=req.land_min,
             land_max=req.land_max,
             sale_method=req.sale_method,
+            property_type=req.property_type,
             max_pages=1,
         )
 
@@ -200,6 +206,7 @@ async def run_area_search(req: AreaSearchRequest) -> dict:
         land_min=req.land_min,
         land_max=req.land_max,
         sale_method=req.sale_method,
+        property_type=req.property_type,
         bounding_box=bounding_box,
         max_pages=req.max_pages,
     )
@@ -213,6 +220,7 @@ async def run_area_search(req: AreaSearchRequest) -> dict:
             land_min=req.land_min,
             land_max=req.land_max,
             sale_method=req.sale_method,
+            property_type=req.property_type,
             bounding_box=bounding_box,
             max_pages=2,
         )
